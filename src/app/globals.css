@@ -158,6 +158,7 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 .rankings-list { width: min(620px, 100%); }
 .player-row { min-height: 34px; padding-top: 2px; padding-bottom: 2px; }
 .player-image { width: 24px; height: 24px; }
+.player-fallback { display: grid; place-items: center; color: #f5f7fb; font-size: 9px; font-weight: 800; }
 .rank-number { color: #f5f7fb; font-size: 15px; font-weight: 700; line-height: 1; }
 .player-name strong { font-size: 15px; font-weight: 700; line-height: 1; }
 @media (max-width: 800px) { .rankings-list { width: 100%; } }

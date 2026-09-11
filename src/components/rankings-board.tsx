@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import {
   closestCenter,
   DndContext,
@@ -23,23 +22,30 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { playerById, players } from "@/lib/players";
+import { players as seedPlayers, type Player } from "@/lib/players";
 import { cloneRanking, initialRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
 
 const positions = ["ALL", "QB", "RB", "WR", "TE"] as const;
 type PositionFilter = (typeof positions)[number];
-const storageKey = "nfl-rankings-board";
+const storageKey = "nfl-rankings-board-v2";
+const positionOrder: Record<Player["position"], number> = { QB: 0, RB: 1, WR: 2, TE: 3 };
+const sortedPlayerIds = (catalog: Player[]) => [...catalog]
+  .sort((left, right) => positionOrder[left.position] - positionOrder[right.position] || left.name.localeCompare(right.name))
+  .map((player) => player.id);
+const emptyTierRanking = (): RankingState => ({ S: [], A: [], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: sortedPlayerIds(seedPlayers) });
 
 export default function RankingsBoard() {
+  const [players, setPlayers] = useState<Player[]>(seedPlayers);
+  const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const [ranking, setRanking] = useState<RankingState>(() => {
-    if (typeof window === "undefined") return cloneRanking(initialRanking);
+    if (typeof window === "undefined") return emptyTierRanking();
     const saved = window.localStorage.getItem(storageKey);
-    if (!saved) return cloneRanking(initialRanking);
+    if (!saved) return emptyTierRanking();
     try {
       return cloneRanking({ ...initialRanking, ...(JSON.parse(saved) as Partial<RankingState>) });
     } catch {
       window.localStorage.removeItem(storageKey);
-      return cloneRanking(initialRanking);
+      return emptyTierRanking();
     }
   });
   const [filter, setFilter] = useState<PositionFilter>("ALL");
@@ -55,6 +61,45 @@ export default function RankingsBoard() {
     if (hydrated) window.localStorage.setItem(storageKey, JSON.stringify(ranking));
   }, [hydrated, ranking]);
 
+  useEffect(() => {
+    fetch("/api/players")
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Unable to load Sleeper players")))
+      .then((livePlayers: Array<Player & { sleeperId?: string }>) => {
+        const liveByName = new Map(livePlayers.map((player) => [player.name.toLowerCase(), player]));
+        const mergedCatalog = [
+          ...seedPlayers.map((player) => {
+            const live = liveByName.get(player.name.toLowerCase());
+            return live ? { ...player, team: live.team, position: live.position, imageUrl: live.imageUrl || player.imageUrl } : player;
+          }),
+          ...livePlayers.filter((player) => !seedPlayers.some((seed) => seed.name.toLowerCase() === player.name.toLowerCase())),
+        ];
+        setPlayers((current) => {
+          const currentByName = new Map(current.map((player) => [player.name.toLowerCase(), player]));
+          const merged = mergedCatalog.map((player) => {
+            const existing = currentByName.get(player.name.toLowerCase());
+            if (existing && existing.id !== player.id) return { ...existing, team: player.team, position: player.position, imageUrl: player.imageUrl || existing.imageUrl };
+            const live = liveByName.get(player.name.toLowerCase());
+            return live ? { ...player, team: live.team, position: live.position, imageUrl: live.imageUrl || player.imageUrl } : player;
+          });
+          return merged;
+        });
+        setRanking((current) => {
+          const hasPlacedPlayers = tiers.some((tier) => tier !== "I" && current[tier].length > 0);
+          const rankedIds = new Set(Object.values(current).flat());
+          const rankedNames = new Set(
+            Object.values(current).flat().map((id) => {
+              const seed = seedPlayers.find((player) => player.id === id);
+              return seed?.name.toLowerCase();
+            }).filter(Boolean),
+          );
+          const newPlayers = livePlayers.filter((player) => !rankedIds.has(player.id) && !rankedNames.has(player.name.toLowerCase()));
+          if (hasPlacedPlayers) return newPlayers.length ? { ...current, I: [...current.I, ...newPlayers.map((player) => player.id)] } : current;
+          return { ...current, I: sortedPlayerIds(mergedCatalog) };
+        });
+      })
+      .catch(() => undefined);
+  }, []);
+
   const visible = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return (playerId: string) => {
@@ -64,7 +109,7 @@ export default function RankingsBoard() {
       const matchesQuery = !normalizedQuery || player.name.toLowerCase().includes(normalizedQuery);
       return matchesPosition && matchesQuery;
     };
-  }, [filter, query]);
+  }, [filter, query, playerById]);
 
   const tierOf = (playerId: string, state: RankingState) => tiers.find((tier) => state[tier].includes(playerId));
 
@@ -102,7 +147,7 @@ export default function RankingsBoard() {
   };
 
   const reset = () => {
-    setRanking(cloneRanking(initialRanking));
+    setRanking({ S: [], A: [], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: sortedPlayerIds(players) });
     window.localStorage.removeItem(storageKey);
   };
 
@@ -132,7 +177,7 @@ export default function RankingsBoard() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => setActivePlayerId(null)}>
         <section className="rankings-list" aria-label="Player rankings">
           {tiers.map((tier) => (
-            <TierGroup key={tier} tier={tier} playerIds={ranking[tier].filter(visible)} ranking={ranking} />
+            <TierGroup key={tier} tier={tier} playerIds={ranking[tier].filter(visible)} ranking={ranking} playerById={playerById} />
           ))}
         </section>
         <DragOverlay dropAnimation={null}>{activePlayerId && playerById.get(activePlayerId) ? <DragPreview player={playerById.get(activePlayerId)!} rank={Object.values(ranking).flat().indexOf(activePlayerId) + 1} /> : null}</DragOverlay>
@@ -142,7 +187,7 @@ export default function RankingsBoard() {
   );
 }
 
-function TierGroup({ tier, playerIds, ranking }: { tier: Tier; playerIds: string[]; ranking: RankingState }) {
+function TierGroup({ tier, playerIds, ranking, playerById }: { tier: Tier; playerIds: string[]; ranking: RankingState; playerById: Map<string, Player> }) {
   const { setNodeRef } = useDroppable({ id: `tier:${tier}` });
   return <div className="tier-group" ref={setNodeRef}>
     <div className={`tier-label tier-${tier.toLowerCase()}`}><strong>{tier}</strong></div>
@@ -159,23 +204,27 @@ function TierGroup({ tier, playerIds, ranking }: { tier: Tier; playerIds: string
   </div>;
 }
 
-function PlayerRow({ player, rank }: { player: (typeof players)[number]; rank: number }) {
+function PlayerRow({ player, rank }: { player: Player; rank: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: player.id });
   return <div ref={setNodeRef} className={`player-row ${isDragging ? "is-dragging" : ""}`} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} {...listeners}>
     <span className="rank-number">{rank}.</span>
-    <Image src={player.imageUrl} alt="" className="player-image" width={32} height={32} loading="lazy" unoptimized />
+    <PlayerAvatar player={player} />
     <div className="player-name"><strong>{player.name}</strong><span>{player.position === "QB" ? "Quarterback" : player.position === "RB" ? "Running back" : player.position === "WR" ? "Wide receiver" : "Tight end"}</span></div>
     <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span>
     <span className="team-code">{player.team}</span>
   </div>;
 }
 
-function DragPreview({ player, rank }: { player: (typeof players)[number]; rank: number }) {
+function DragPreview({ player, rank }: { player: Player; rank: number }) {
   return <div className="drag-preview">
     <span className="rank-number">{rank}.</span>
-    <Image src={player.imageUrl} alt="" className="player-image" width={32} height={32} unoptimized />
+    <PlayerAvatar player={player} />
     <div className="player-name"><strong>{player.name}</strong></div>
     <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span>
     <span className="team-code">{player.team}</span>
   </div>;
+}
+
+function PlayerAvatar({ player }: { player: Player }) {
+  return <span className="player-image player-fallback" aria-hidden="true">{player.name.split(" ").map((part) => part[0]).slice(0, 2).join("")}</span>;
 }
