@@ -24,18 +24,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { players as seedPlayers, type Player } from "@/lib/players";
-import { cloneRanking, normalizeRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
+import { cloneRanking, createDefaultRanking, normalizeRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
 import { createClient } from "@/lib/supabase/client";
 
 const positions = ["ALL", "QB", "RB", "WR", "TE"] as const;
 type PositionFilter = (typeof positions)[number];
 type SaveStatus = "loading" | "saving" | "saved" | "error";
 
-const positionOrder: Record<Player["position"], number> = { QB: 0, RB: 1, WR: 2, TE: 3 };
-const sortedPlayerIds = (catalog: Player[]) => [...catalog]
-  .sort((left, right) => positionOrder[left.position] - positionOrder[right.position] || left.name.localeCompare(right.name))
-  .map((player) => player.id);
-const emptyTierRanking = (catalog: Player[] = seedPlayers): RankingState => ({ S: [], A: [], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: sortedPlayerIds(catalog) });
+const emptyTierRanking = (catalog: Player[] = seedPlayers): RankingState => createDefaultRanking(catalog);
 
 export default function RankingsBoard({ userId }: { userId: string }) {
   const router = useRouter();
@@ -44,6 +40,7 @@ export default function RankingsBoard({ userId }: { userId: string }) {
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const [ranking, setRanking] = useState<RankingState>(emptyTierRanking);
   const [rankingReady, setRankingReady] = useState(false);
+  const [playerCatalogReady, setPlayerCatalogReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [filter, setFilter] = useState<PositionFilter>("ALL");
@@ -99,25 +96,27 @@ export default function RankingsBoard({ userId }: { userId: string }) {
           ...livePlayers.filter((player) => !seedPlayers.some((seed) => seed.name.toLowerCase() === player.name.toLowerCase())),
         ]);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setPlayerCatalogReady(true));
   }, []);
 
   useEffect(() => {
-    if (!rankingReady) return;
+    if (!rankingReady || !playerCatalogReady) return;
 
     const reconcileTimer = window.setTimeout(() => {
       setRanking((current) => {
+        if (!lastPersistedRanking.current) return emptyTierRanking(players);
         const rankedIds = new Set(Object.values(current).flat());
-        const newPlayerIds = sortedPlayerIds(players).filter((id) => !rankedIds.has(id));
+        const newPlayerIds = createDefaultRanking(players).I.filter((id) => !rankedIds.has(id));
         return newPlayerIds.length ? { ...current, I: [...current.I, ...newPlayerIds] } : current;
       });
     }, 0);
 
     return () => window.clearTimeout(reconcileTimer);
-  }, [players, rankingReady]);
+  }, [players, playerCatalogReady, rankingReady]);
 
   useEffect(() => {
-    if (!rankingReady) return;
+    if (!rankingReady || !playerCatalogReady) return;
 
     const serializedRanking = JSON.stringify(ranking);
     if (serializedRanking === lastPersistedRanking.current) return;
@@ -140,7 +139,7 @@ export default function RankingsBoard({ userId }: { userId: string }) {
     }, 500);
 
     return () => window.clearTimeout(saveTimer);
-  }, [ranking, rankingReady, supabase, userId]);
+  }, [playerCatalogReady, ranking, rankingReady, supabase, userId]);
 
   const visible = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
