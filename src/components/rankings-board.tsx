@@ -24,7 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { players as seedPlayers, type Player } from "@/lib/players";
-import { cloneRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
+import { cloneRanking, normalizeRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
 import { createClient } from "@/lib/supabase/client";
 
 const positions = ["ALL", "QB", "RB", "WR", "TE"] as const;
@@ -36,12 +36,6 @@ const sortedPlayerIds = (catalog: Player[]) => [...catalog]
   .sort((left, right) => positionOrder[left.position] - positionOrder[right.position] || left.name.localeCompare(right.name))
   .map((player) => player.id);
 const emptyTierRanking = (catalog: Player[] = seedPlayers): RankingState => ({ S: [], A: [], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: sortedPlayerIds(catalog) });
-
-function normalizeRanking(value: unknown): RankingState {
-  if (!value || typeof value !== "object") return emptyTierRanking();
-  const stored = value as Partial<Record<Tier, unknown>>;
-  return Object.fromEntries(tiers.map((tier) => [tier, Array.isArray(stored[tier]) ? stored[tier].filter((id): id is string => typeof id === "string") : []])) as RankingState;
-}
 
 export default function RankingsBoard({ userId }: { userId: string }) {
   const router = useRouter();
