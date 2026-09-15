@@ -175,8 +175,8 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 	.player-row { grid-template-columns: 32px 36px 260px 58px 58px; }
 }
 
-.auth-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 0, #17294d 0, transparent 42%), #050505; }
-.auth-card { width: min(100%, 410px); border: 1px solid #2b3240; border-radius: 16px; padding: 36px; background: #101216; box-shadow: 0 22px 60px #0009; }
+.auth-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: radial-gradient(ellipse 50% 28% at 50% 0, #17294d 0%, transparent 100%), #050505; }
+.auth-card { width: min(100%, 410px); border: 1px solid #2b3240; border-radius: 16px; padding: 36px; background: #101216; }
 .auth-mark { display: grid; width: 45px; height: 45px; place-items: center; margin-bottom: 24px; border-radius: 12px; background: #6395ee; color: #071225; font-size: 23px; font-weight: 800; }
 .auth-eyebrow { margin: 0 0 8px; color: #6395ee; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .auth-card h1 { font-size: 31px; }.auth-copy { margin: 10px 0 26px; color: var(--muted); font-size: 13px; line-height: 1.55; }
