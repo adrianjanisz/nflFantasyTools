@@ -37,23 +37,32 @@ const emptyTierRanking = (): RankingState => ({ S: [], A: [], B: [], C: [], D: [
 export default function RankingsBoard() {
   const [players, setPlayers] = useState<Player[]>(seedPlayers);
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
-  const [ranking, setRanking] = useState<RankingState>(() => {
-    if (typeof window === "undefined") return emptyTierRanking();
-    const saved = window.localStorage.getItem(storageKey);
-    if (!saved) return emptyTierRanking();
-    try {
-      return cloneRanking({ ...initialRanking, ...(JSON.parse(saved) as Partial<RankingState>) });
-    } catch {
-      window.localStorage.removeItem(storageKey);
-      return emptyTierRanking();
-    }
-  });
+  // Keep the first browser render identical to the server render. Saved board
+  // data is restored only after React has hydrated the page.
+  const [ranking, setRanking] = useState<RankingState>(emptyTierRanking);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    const restoreSavedRanking = window.setTimeout(() => {
+      const saved = window.localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          setRanking(cloneRanking({ ...initialRanking, ...(JSON.parse(saved) as Partial<RankingState>) }));
+        } catch {
+          window.localStorage.removeItem(storageKey);
+        }
+      }
+      setHydrated(true);
+    }, 0);
+
+    return () => window.clearTimeout(restoreSavedRanking);
+  }, []);
+
   const [filter, setFilter] = useState<PositionFilter>("ALL");
   const [query, setQuery] = useState("");
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
-  const [hydrated] = useState(true);
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
@@ -174,7 +183,7 @@ export default function RankingsBoard() {
           </div>
         </section>
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => setActivePlayerId(null)}>
+        <DndContext id="rankings-board" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => setActivePlayerId(null)}>
         <section className="rankings-list" aria-label="Player rankings">
           {tiers.map((tier) => (
             <TierGroup key={tier} tier={tier} playerIds={ranking[tier].filter(visible)} ranking={ranking} playerById={playerById} />
