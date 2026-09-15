@@ -176,6 +176,29 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 	.player-row { grid-template-columns: 32px 36px 260px 58px 58px; }
 }
 
+/* Compact rankings columns */
+.rankings-list { position: relative; width: min(466px, 100%); max-width: 466px; background-color: #050505; background-image: repeating-linear-gradient(to bottom, #1c1c1c 0 2px, transparent 2px 4px), repeating-linear-gradient(to bottom, #1c1c1c 0 2px, transparent 2px 4px), repeating-linear-gradient(to bottom, #1c1c1c 0 2px, transparent 2px 4px); background-position: 266px 0, 366px 0, 465px 0; background-size: 1px 100%; background-repeat: no-repeat; }
+.ranking-columns { display: grid; grid-template-columns: 256px 80px 80px; align-items: center; gap: 20px; min-height: 34px; padding: 0; color: #8d8d8d; font-size: 11px; font-weight: 700; }
+.ranking-columns span:nth-child(2), .ranking-columns span:nth-child(3) { display: grid; height: 34px; place-items: center; border: 1px solid #242424; border-radius: 8px; padding: 0; background: #141414; text-align: center; }
+.tier-group { position: relative; width: 100%; padding: 0 0 8px; }.tier-group::after { position: absolute; top: 16px; right: 4px; left: 270px; z-index: 0; height: 1px; content: ""; background: repeating-linear-gradient(to right, #1c1c1c 0 2px, transparent 2px 4px) 0 0 / 92px 1px no-repeat, repeating-linear-gradient(to right, #1c1c1c 0 2px, transparent 2px 4px) 100px 0 / 92px 1px no-repeat; }
+.tier-label { position: relative; z-index: 1; width: 256px; min-height: 32px; margin: 0 0 5px; padding: 0 11px; }
+.tier-players { position: relative; gap: 4px; }
+.empty-tier { display: grid; width: 256px; min-height: 34px; place-items: center; margin: 0; padding: 0; color: #626978; font-size: 11px; text-align: center; }
+.tier-players::before, .tier-players::after { display: none; }
+.player-row { display: grid; grid-template-columns: 256px 80px 80px; align-items: center; gap: 20px; width: 100%; min-height: 34px; padding: 0; background: transparent; }
+.player-row:hover { background: transparent; transform: none; }.player-row.is-dragging { background: transparent; box-shadow: none; }
+.player-details { z-index: 1; display: grid; grid-template-columns: 28px 28px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 34px; padding: 3px 8px 3px 7px; border-radius: 8px; background: #141414; }
+.player-details:hover { background: #202020; }
+.rank-number { grid-column: 1; color: #f5f5f5; font-size: 14px; font-weight: 700; text-align: right; }
+.player-details .player-image { grid-column: 2; width: 28px; height: 28px; justify-self: start; }
+.player-name { grid-column: 3; min-width: 0; }
+.player-name strong { display: block; overflow: hidden; color: #f5f5f5; font-size: 14px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.position-pill { z-index: 1; grid-column: 2; justify-self: center; min-width: 38px; padding: 5px 7px; font-size: 11px; text-align: center; }
+.team-code { z-index: 1; grid-column: 3; color: #e7e7e7; font-size: 12px; font-weight: 700; text-align: center; }
+.drag-preview { display: grid; grid-template-columns: 256px 80px 80px; align-items: center; gap: 20px; width: min(456px, calc(100vw - 24px)); height: auto; min-height: 34px; padding: 0; background: transparent; box-shadow: none; }
+.drag-preview .player-details { grid-column: 1; }.drag-preview .position-pill { grid-column: 2; }.drag-preview .team-code { grid-column: 3; }
+@media (max-width: 480px) { .rankings-list { background-position: calc(100% - 112px) 0, calc(100% - 52px) 0, calc(100% - 1px) 0; }.ranking-columns { grid-template-columns: minmax(0, 1fr) 60px 44px; gap: 8px; }.tier-group::after { right: 5px; left: calc(100% - 108px); background-size: 52px 1px, 43px 1px; background-position: 0 0, 60px 0; }.tier-label, .empty-tier { width: calc(100% - 120px); }.player-row, .drag-preview { grid-template-columns: minmax(0, 1fr) 60px 44px; gap: 8px; }.player-name strong { font-size: 13px; }.position-pill { min-width: 34px; padding-inline: 5px; }.team-code { font-size: 11px; } }
+
 .auth-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: radial-gradient(ellipse 50% 28% at 50% 0, #17294d 0%, transparent 100%), #050505; }
 .auth-card { width: min(100%, 410px); border: 1px solid #2b3240; border-radius: 16px; padding: 36px; background: #101216; }
 .auth-mark { display: grid; width: 45px; height: 45px; place-items: center; margin-bottom: 24px; border-radius: 12px; background: #6395ee; color: #071225; font-size: 23px; font-weight: 800; }

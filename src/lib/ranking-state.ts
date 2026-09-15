@@ -20,6 +20,23 @@ export const createDefaultRanking = (catalog: Player[]): RankingState => ({
     .map((player) => player.id),
 });
 
+export const getPositionRanks = (ranking: RankingState, playerById: Map<string, Player>) => {
+  const ranks = new Map<string, number>();
+  const counts: Partial<Record<Player["position"], number>> = {};
+
+  for (const tier of tiers) {
+    for (const playerId of ranking[tier]) {
+      const player = playerById.get(playerId);
+      if (!player) continue;
+      const positionRank = (counts[player.position] ?? 0) + 1;
+      counts[player.position] = positionRank;
+      ranks.set(playerId, positionRank);
+    }
+  }
+
+  return ranks;
+};
+
 export const normalizeRanking = (value: unknown): RankingState => {
   if (!value || typeof value !== "object") return emptyRanking();
   const stored = value as Partial<Record<Tier, unknown>>;

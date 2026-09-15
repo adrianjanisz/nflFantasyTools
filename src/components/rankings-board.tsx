@@ -24,7 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { players as seedPlayers, type Player } from "@/lib/players";
-import { cloneRanking, createDefaultRanking, normalizeRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
+import { cloneRanking, createDefaultRanking, getPositionRanks, normalizeRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
 import { createClient } from "@/lib/supabase/client";
 
 const positions = ["ALL", "QB", "RB", "WR", "TE"] as const;
@@ -62,6 +62,9 @@ export default function RankingsBoard({ userId }: { userId: string }) {
   const [players, setPlayers] = useState<Player[]>(seedPlayers);
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const [ranking, setRanking] = useState<RankingState>(emptyTierRanking);
+  const rankedPlayerIds = useMemo(() => tiers.flatMap((tier) => ranking[tier]), [ranking]);
+  const rankByPlayerId = useMemo(() => new Map(rankedPlayerIds.map((playerId, index) => [playerId, index + 1])), [rankedPlayerIds]);
+  const positionRankByPlayerId = useMemo(() => getPositionRanks(ranking, playerById), [playerById, ranking]);
   const [rankingReady, setRankingReady] = useState(false);
   const [playerCatalogReady, setPlayerCatalogReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
@@ -232,16 +235,17 @@ export default function RankingsBoard({ userId }: { userId: string }) {
 
         <DndContext id="rankings-board" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => setActivePlayerId(null)}>
           <section className="rankings-list" aria-label="Player rankings">
-            {tiers.map((tier) => <TierGroup key={tier} tier={tier} playerIds={ranking[tier].filter(visible)} ranking={ranking} playerById={playerById} />)}
+            <div className="ranking-columns" aria-hidden="true"><span /><span>POS</span><span>TM</span></div>
+            {tiers.map((tier) => <TierGroup key={tier} tier={tier} playerIds={ranking[tier].filter(visible)} playerById={playerById} rankByPlayerId={rankByPlayerId} positionRankByPlayerId={positionRankByPlayerId} />)}
           </section>
-          <DragOverlay dropAnimation={null}>{activePlayerId && playerById.get(activePlayerId) ? <DragPreview player={playerById.get(activePlayerId)!} rank={Object.values(ranking).flat().indexOf(activePlayerId) + 1} /> : null}</DragOverlay>
+          <DragOverlay dropAnimation={null}>{activePlayerId && playerById.get(activePlayerId) ? <DragPreview player={playerById.get(activePlayerId)!} rank={rankByPlayerId.get(activePlayerId) ?? 0} positionRank={positionRankByPlayerId.get(activePlayerId) ?? 0} /> : null}</DragOverlay>
         </DndContext>
       </main>
     </div>
   );
 }
 
-function TierGroup({ tier, playerIds, ranking, playerById }: { tier: Tier; playerIds: string[]; ranking: RankingState; playerById: Map<string, Player> }) {
+function TierGroup({ tier, playerIds, playerById, rankByPlayerId, positionRankByPlayerId }: { tier: Tier; playerIds: string[]; playerById: Map<string, Player>; rankByPlayerId: Map<string, number>; positionRankByPlayerId: Map<string, number> }) {
   const { setNodeRef } = useDroppable({ id: `tier:${tier}` });
   return <div className="tier-group" ref={setNodeRef}>
     <div className={`tier-label tier-${tier.toLowerCase()}`}><strong>{tier}</strong></div>
@@ -249,7 +253,7 @@ function TierGroup({ tier, playerIds, ranking, playerById }: { tier: Tier; playe
       <div className="tier-players">
         {playerIds.map((playerId) => {
           const player = playerById.get(playerId);
-          return player ? <PlayerRow key={player.id} player={player} rank={Object.values(ranking).flat().indexOf(playerId) + 1} /> : null;
+          return player ? <PlayerRow key={player.id} player={player} rank={rankByPlayerId.get(playerId) ?? 0} positionRank={positionRankByPlayerId.get(playerId) ?? 0} /> : null;
         })}
         {!playerIds.length && <div className="empty-tier">Drop players here</div>}
       </div>
@@ -257,17 +261,16 @@ function TierGroup({ tier, playerIds, ranking, playerById }: { tier: Tier; playe
   </div>;
 }
 
-function PlayerRow({ player, rank }: { player: Player; rank: number }) {
+function PlayerRow({ player, rank, positionRank }: { player: Player; rank: number; positionRank: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: player.id });
   return <div ref={setNodeRef} className={`player-row ${isDragging ? "is-dragging" : ""}`} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} {...listeners}>
-    <span className="rank-number">{rank}.</span><PlayerAvatar player={player} />
-    <div className="player-name"><strong>{player.name}</strong><span>{player.position === "QB" ? "Quarterback" : player.position === "RB" ? "Running back" : player.position === "WR" ? "Wide receiver" : "Tight end"}</span></div>
-    <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span><span className="team-code">{player.team}</span>
+    <div className="player-details"><span className="rank-number">{rank}.</span><PlayerAvatar player={player} /><div className="player-name"><strong>{player.name}</strong></div></div>
+    <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}{positionRank}</span><span className="team-code">{player.team}</span>
   </div>;
 }
 
-function DragPreview({ player, rank }: { player: Player; rank: number }) {
-  return <div className="drag-preview"><span className="rank-number">{rank}.</span><PlayerAvatar player={player} /><div className="player-name"><strong>{player.name}</strong></div><span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span><span className="team-code">{player.team}</span></div>;
+function DragPreview({ player, rank, positionRank }: { player: Player; rank: number; positionRank: number }) {
+  return <div className="drag-preview"><div className="player-details"><span className="rank-number">{rank}.</span><PlayerAvatar player={player} /><div className="player-name"><strong>{player.name}</strong></div></div><span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}{positionRank}</span><span className="team-code">{player.team}</span></div>;
 }
 
 function PlayerAvatar({ player }: { player: Player }) {

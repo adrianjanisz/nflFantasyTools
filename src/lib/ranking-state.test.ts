@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cloneRanking, createDefaultRanking, normalizeRanking, tiers, type RankingState } from "./ranking-state";
+import { cloneRanking, createDefaultRanking, getPositionRanks, normalizeRanking, tiers, type RankingState } from "./ranking-state";
 
 describe("normalizeRanking", () => {
   it("keeps only string player IDs and supplies every tier", () => {
@@ -41,5 +41,19 @@ describe("createDefaultRanking", () => {
 
     expect(ranking.I).toEqual(["allen", "mahomes", "gibbs", "robinson", "wilson", "kelce"]);
     expect(tiers.filter((tier) => tier !== "I").every((tier) => ranking[tier].length === 0)).toBe(true);
+  });
+});
+
+describe("getPositionRanks", () => {
+  it("numbers each position in tier and player order", () => {
+    const ranking: RankingState = { S: ["allen", "gibbs"], A: ["hurts", "bijan"], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: [] };
+    const playerById = new Map([
+      ["allen", { id: "allen", name: "Josh Allen", team: "BUF", position: "QB" as const, imageUrl: null }],
+      ["gibbs", { id: "gibbs", name: "Jahmyr Gibbs", team: "DET", position: "RB" as const, imageUrl: null }],
+      ["hurts", { id: "hurts", name: "Jalen Hurts", team: "PHI", position: "QB" as const, imageUrl: null }],
+      ["bijan", { id: "bijan", name: "Bijan Robinson", team: "ATL", position: "RB" as const, imageUrl: null }],
+    ]);
+
+    expect(getPositionRanks(ranking, playerById)).toEqual(new Map([["allen", 1], ["gibbs", 1], ["hurts", 2], ["bijan", 2]]));
   });
 });
