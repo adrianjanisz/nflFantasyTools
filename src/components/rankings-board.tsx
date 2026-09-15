@@ -27,7 +27,7 @@ import { players as seedPlayers, type Player } from "@/lib/players";
 import { cloneRanking, createDefaultRanking, getPositionRanks, normalizeRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
 import { createClient } from "@/lib/supabase/client";
 
-const positions = ["ALL", "QB", "RB", "WR", "TE"] as const;
+const positions = ["QB", "RB", "WR", "TE"] as const;
 type PositionFilter = (typeof positions)[number];
 type SaveStatus = "loading" | "saving" | "saved" | "error";
 type LivePlayer = Player & { sleeperId?: string };
@@ -64,15 +64,18 @@ export default function RankingsBoard({ userId }: { userId: string }) {
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
   const [ranking, setRanking] = useState<RankingState>(emptyTierRanking);
   const rankedPlayerIds = useMemo(() => tiers.flatMap((tier) => ranking[tier]), [ranking]);
-  const rankByPlayerId = useMemo(() => new Map(rankedPlayerIds.map((playerId, index) => [playerId, index + 1])), [rankedPlayerIds]);
   const positionRankByPlayerId = useMemo(() => getPositionRanks(ranking, playerById), [playerById, ranking]);
   const [rankingReady, setRankingReady] = useState(false);
   const [playerCatalogReady, setPlayerCatalogReady] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<PositionFilter>("ALL");
+  const [filter, setFilter] = useState<PositionFilter>("QB");
   const [query, setQuery] = useState("");
   const lastPersistedRanking = useRef<string | null>(null);
+  const rankByPlayerId = useMemo(() => {
+    const filteredPlayerIds = rankedPlayerIds.filter((playerId) => playerById.get(playerId)?.position === filter);
+    return new Map(filteredPlayerIds.map((playerId, index) => [playerId, index + 1]));
+  }, [filter, playerById, rankedPlayerIds]);
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -163,7 +166,7 @@ export default function RankingsBoard({ userId }: { userId: string }) {
     return (playerId: string) => {
       const player = playerById.get(playerId);
       if (!player) return false;
-      return (filter === "ALL" || player.position === filter) && (!normalizedQuery || player.name.toLowerCase().includes(normalizedQuery));
+      return player.position === filter && (!normalizedQuery || player.name.toLowerCase().includes(normalizedQuery));
     };
   }, [filter, query, playerById]);
 
@@ -230,7 +233,7 @@ export default function RankingsBoard({ userId }: { userId: string }) {
         </header>
 
         <section className="board-toolbar" aria-label="Ranking controls">
-          <div className="league-controls"><label>Position:<span className="position-tabs" role="tablist" aria-label="Filter by position">{positions.map((position) => <button role="tab" aria-selected={filter === position} className={filter === position ? "selected" : ""} key={position} type="button" onClick={() => setFilter(position)}>{position === "ALL" ? "Overall" : position}</button>)}</span></label></div>
+          <div className="league-controls"><label>Position:<span className="position-tabs" role="tablist" aria-label="Filter by position">{positions.map((position) => <button role="tab" aria-selected={filter === position} className={filter === position ? "selected" : ""} key={position} type="button" onClick={() => setFilter(position)}>{position}</button>)}</span></label></div>
           <div className="toolbar-controls"><label className="search-box"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search for a player..." aria-label="Search players" /></label></div>
         </section>
 
