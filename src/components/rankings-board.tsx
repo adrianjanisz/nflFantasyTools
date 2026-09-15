@@ -33,6 +33,7 @@ type SaveStatus = "loading" | "saving" | "saved" | "error";
 type LivePlayer = Player & { sleeperId?: string };
 
 const emptyTierRanking = (catalog: Player[] = seedPlayers): RankingState => createDefaultRanking(catalog);
+const disableLayoutAnimations = () => false;
 const mergePlayerCatalog = (livePlayers: LivePlayer[]): Player[] => {
   const liveByName = new Map(livePlayers.map((player) => [player.name.toLowerCase(), player]));
   return [
@@ -262,7 +263,7 @@ function TierGroup({ tier, playerIds, playerById, rankByPlayerId, positionRankBy
 }
 
 function PlayerRow({ player, rank, positionRank }: { player: Player; rank: number; positionRank: number }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: player.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: player.id, animateLayoutChanges: disableLayoutAnimations });
   return <div ref={setNodeRef} className={`player-row ${isDragging ? "is-dragging" : ""}`} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} {...listeners}>
     <div className="player-details"><span className="rank-number">{rank}.</span><PlayerAvatar player={player} /><div className="player-name"><strong>{player.name}</strong></div></div>
     <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}{positionRank}</span><span className="team-code">{player.team}</span>
