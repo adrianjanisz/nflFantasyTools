@@ -49,8 +49,7 @@ export default function LoginPage() {
   return (
     <main className="auth-page">
       <section className="auth-card" aria-labelledby="auth-title">
-        <div className="auth-mark" aria-hidden="true">R</div>
-        <p className="auth-eyebrow">Fantasy Rankings</p>
+        <p className="auth-eyebrow">Fantasy Tools</p>
         <h1 id="auth-title">{mode === "sign-in" ? "Welcome back" : "Create your board"}</h1>
         <p className="auth-copy">{mode === "sign-in" ? "Sign in to continue your personal rankings." : "Your rankings are private and saved to your account."}</p>
 
