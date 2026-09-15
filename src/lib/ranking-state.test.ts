@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cloneRanking, normalizeRanking, tiers, type RankingState } from "./ranking-state";
+import { cloneRanking, createDefaultRanking, normalizeRanking, tiers, type RankingState } from "./ranking-state";
 
 describe("normalizeRanking", () => {
   it("keeps only string player IDs and supplies every tier", () => {
@@ -25,5 +25,21 @@ describe("cloneRanking", () => {
 
     expect(source.S).toEqual(["gibbs"]);
     expect(copy.S).toEqual(["gibbs", "bijan"]);
+  });
+});
+
+describe("createDefaultRanking", () => {
+  it("puts players in tier I by position, then alphabetically by name", () => {
+    const ranking = createDefaultRanking([
+      { id: "wilson", name: "Garrett Wilson", team: "NYJ", position: "WR", imageUrl: null },
+      { id: "mahomes", name: "Patrick Mahomes", team: "KC", position: "QB", imageUrl: null },
+      { id: "allen", name: "Josh Allen", team: "BUF", position: "QB", imageUrl: null },
+      { id: "kelce", name: "Travis Kelce", team: "KC", position: "TE", imageUrl: null },
+      { id: "gibbs", name: "Jahmyr Gibbs", team: "DET", position: "RB", imageUrl: null },
+      { id: "robinson", name: "Bijan Robinson", team: "ATL", position: "RB", imageUrl: null },
+    ]);
+
+    expect(ranking.I).toEqual(["allen", "mahomes", "robinson", "gibbs", "wilson", "kelce"]);
+    expect(tiers.filter((tier) => tier !== "I").every((tier) => ranking[tier].length === 0)).toBe(true);
   });
 });
