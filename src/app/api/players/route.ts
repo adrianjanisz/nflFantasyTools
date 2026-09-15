@@ -12,7 +12,6 @@ type SleeperPlayer = {
   position?: string | null;
   fantasy_positions?: string[] | null;
   status?: string | null;
-  espn_id?: string | null;
 };
 
 type AppPlayer = {
@@ -53,7 +52,7 @@ export async function GET() {
           name,
           team: player.team,
           position: normalizedPosition,
-          imageUrl: player.espn_id ? `https://a.espncdn.com/i/headshots/nfl/players/full/${player.espn_id}.png` : null,
+          imageUrl: null,
           sleeperId: player.player_id,
         });
       }
