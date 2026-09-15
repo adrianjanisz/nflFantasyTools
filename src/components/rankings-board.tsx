@@ -191,8 +191,6 @@ export default function RankingsBoard({ userId }: { userId: string }) {
     router.replace("/login");
     router.refresh();
   };
-  const saveMessage = saveStatus === "loading" ? "Loading board..." : saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved" : "Could not save";
-
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -205,7 +203,7 @@ export default function RankingsBoard({ userId }: { userId: string }) {
         <header className="topbar">
           <div className="product-lockup"><div className="product-title"><strong>Fantasy Rankings</strong></div></div>
           <div className="top-actions">
-            <span className={`saved-label save-status-${saveStatus}`}>{saveMessage}</span>
+            {saveStatus === "error" && <p className="save-error" role="alert">Could not save changes. Try again.</p>}
             <button className="reset-button" type="button" onClick={reset}>Reset board</button>
             <button className="reset-button" type="button" onClick={() => void signOut()}>Sign out</button>
           </div>

@@ -22,7 +22,7 @@ button { cursor: pointer; }
 .eyebrow { margin: 0 0 9px; color: var(--blue); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
 h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 .top-actions { display: flex; align-items: center; gap: 22px; }
-.saved-label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 10px; }
+.save-error { margin: 0; color: #ff9bad; font-family: 'DM Mono', monospace; font-size: 10px; }
 .reset-button { border: 1px solid var(--line); border-radius: 7px; padding: 9px 12px; background: transparent; color: var(--muted); font-size: 11px; transition: .2s; }
 .reset-button:hover { border-color: var(--blue); color: var(--text); }
 .board-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 25px; }
@@ -88,7 +88,7 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 .board-switcher { display: flex; align-items: center; gap: 8px; height: 36px; border: 1px solid #31558e; border-radius: 18px; padding: 0 12px 0 5px; background: #101b30; color: #fff; }
 .board-switcher b { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 50%; background: #6395ee; color: #071225; }
 .board-switcher span { display: grid; gap: 1px; font-size: 10px; font-weight: 700; text-align: left; }.board-switcher small { color: #6395ee; font-size: 7px; letter-spacing: .14em; }.board-switcher em { color: #6395ee; font-style: normal; }
-.top-actions { gap: 10px; }.saved-label { display: none; }.reset-button { padding: 6px 9px; font-size: 10px; }
+.top-actions { gap: 10px; }.reset-button { padding: 6px 9px; font-size: 10px; }
 .board-toolbar { align-items: flex-end; margin-bottom: 14px; gap: 9px; }
 .league-controls { display: flex; align-items: flex-end; gap: 27px; flex: 1; }
 .league-controls > label { display: flex; flex-direction: column; gap: 7px; color: #858585; font-size: 11px; }
@@ -185,4 +185,3 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 .auth-submit { border: 0; border-radius: 8px; padding: 12px; background: #6395ee; color: #071225; font-weight: 800; }.auth-submit:disabled { cursor: wait; opacity: .7; }
 .auth-message { margin: 0; border: 1px solid #914056; border-radius: 7px; padding: 10px; background: #32131d; color: #ffb1c4; font-size: 12px; }
 .auth-switch { margin-top: 20px; border: 0; padding: 0; background: transparent; color: #91b6ff; font-size: 12px; }
-.save-status-error { color: #ff9bad; }
