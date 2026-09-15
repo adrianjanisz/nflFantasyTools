@@ -7,12 +7,16 @@ export type Tier = (typeof tiers)[number];
 export type RankingState = Record<Tier, string[]>;
 
 const emptyRanking = (): RankingState => Object.fromEntries(tiers.map((tier) => [tier, []])) as unknown as RankingState;
-const positionOrder: Record<Player["position"], number> = { QB: 0, RB: 1, WR: 2, TE: 3 };
+const rankOrLast = (rank: number | null | undefined) => rank ?? Number.MAX_SAFE_INTEGER;
 
 export const createDefaultRanking = (catalog: Player[]): RankingState => ({
   ...emptyRanking(),
   I: [...catalog]
-    .sort((left, right) => positionOrder[left.position] - positionOrder[right.position] || left.name.localeCompare(right.name))
+    .sort((left, right) =>
+      rankOrLast(left.searchRank) - rankOrLast(right.searchRank)
+      || rankOrLast(left.depthChartOrder) - rankOrLast(right.depthChartOrder)
+      || left.name.localeCompare(right.name),
+    )
     .map((player) => player.id),
 });
 

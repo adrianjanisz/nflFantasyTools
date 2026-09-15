@@ -12,6 +12,8 @@ type SleeperPlayer = {
   position?: string | null;
   fantasy_positions?: string[] | null;
   status?: string | null;
+  search_rank?: number | null;
+  depth_chart_order?: number | null;
 };
 
 type AppPlayer = {
@@ -21,6 +23,8 @@ type AppPlayer = {
   position: "QB" | "RB" | "WR" | "TE";
   imageUrl: string | null;
   sleeperId: string;
+  searchRank: number | null;
+  depthChartOrder: number | null;
 };
 
 const getPlayerName = (player: SleeperPlayer) =>
@@ -54,6 +58,8 @@ export async function GET() {
           position: normalizedPosition,
           imageUrl: null,
           sleeperId: player.player_id,
+          searchRank: player.search_rank ?? null,
+          depthChartOrder: player.depth_chart_order ?? null,
         });
       }
     }

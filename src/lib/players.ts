@@ -6,6 +6,8 @@ export type Player = {
   team: string;
   position: Position;
   imageUrl: string | null;
+  searchRank?: number | null;
+  depthChartOrder?: number | null;
 };
 
 export const players: Player[] = [

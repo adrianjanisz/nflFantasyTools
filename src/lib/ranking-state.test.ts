@@ -29,17 +29,17 @@ describe("cloneRanking", () => {
 });
 
 describe("createDefaultRanking", () => {
-  it("puts players in tier I by position, then alphabetically by name", () => {
+  it("puts players in tier I by Sleeper search rank, then depth-chart order", () => {
     const ranking = createDefaultRanking([
-      { id: "wilson", name: "Garrett Wilson", team: "NYJ", position: "WR", imageUrl: null },
-      { id: "mahomes", name: "Patrick Mahomes", team: "KC", position: "QB", imageUrl: null },
-      { id: "allen", name: "Josh Allen", team: "BUF", position: "QB", imageUrl: null },
-      { id: "kelce", name: "Travis Kelce", team: "KC", position: "TE", imageUrl: null },
-      { id: "gibbs", name: "Jahmyr Gibbs", team: "DET", position: "RB", imageUrl: null },
-      { id: "robinson", name: "Bijan Robinson", team: "ATL", position: "RB", imageUrl: null },
+      { id: "wilson", name: "Garrett Wilson", team: "NYJ", position: "WR", imageUrl: null, depthChartOrder: 1 },
+      { id: "mahomes", name: "Patrick Mahomes", team: "KC", position: "QB", imageUrl: null, searchRank: 2, depthChartOrder: 1 },
+      { id: "allen", name: "Josh Allen", team: "BUF", position: "QB", imageUrl: null, searchRank: 1, depthChartOrder: 1 },
+      { id: "kelce", name: "Travis Kelce", team: "KC", position: "TE", imageUrl: null, depthChartOrder: 2 },
+      { id: "gibbs", name: "Jahmyr Gibbs", team: "DET", position: "RB", imageUrl: null, searchRank: 5, depthChartOrder: 1 },
+      { id: "robinson", name: "Bijan Robinson", team: "ATL", position: "RB", imageUrl: null, searchRank: 5, depthChartOrder: 2 },
     ]);
 
-    expect(ranking.I).toEqual(["allen", "mahomes", "robinson", "gibbs", "wilson", "kelce"]);
+    expect(ranking.I).toEqual(["allen", "mahomes", "gibbs", "robinson", "wilson", "kelce"]);
     expect(tiers.filter((tier) => tier !== "I").every((tier) => ranking[tier].length === 0)).toBe(true);
   });
 });

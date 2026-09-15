@@ -30,8 +30,31 @@ import { createClient } from "@/lib/supabase/client";
 const positions = ["ALL", "QB", "RB", "WR", "TE"] as const;
 type PositionFilter = (typeof positions)[number];
 type SaveStatus = "loading" | "saving" | "saved" | "error";
+type LivePlayer = Player & { sleeperId?: string };
 
 const emptyTierRanking = (catalog: Player[] = seedPlayers): RankingState => createDefaultRanking(catalog);
+const mergePlayerCatalog = (livePlayers: LivePlayer[]): Player[] => {
+  const liveByName = new Map(livePlayers.map((player) => [player.name.toLowerCase(), player]));
+  return [
+    ...seedPlayers.map((player) => {
+      const live = liveByName.get(player.name.toLowerCase());
+      return live ? {
+        ...player,
+        team: live.team,
+        position: live.position,
+        searchRank: live.searchRank,
+        depthChartOrder: live.depthChartOrder,
+      } : player;
+    }),
+    ...livePlayers.filter((player) => !seedPlayers.some((seed) => seed.name.toLowerCase() === player.name.toLowerCase())),
+  ];
+};
+
+const fetchPlayerCatalog = async (): Promise<Player[]> => {
+  const response = await fetch("/api/players", { cache: "no-store" });
+  if (!response.ok) throw new Error("Unable to load Sleeper players");
+  return mergePlayerCatalog(await response.json() as LivePlayer[]);
+};
 
 export default function RankingsBoard({ userId }: { userId: string }) {
   const router = useRouter();
@@ -84,18 +107,8 @@ export default function RankingsBoard({ userId }: { userId: string }) {
   }, [supabase, userId]);
 
   useEffect(() => {
-    fetch("/api/players")
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error("Unable to load Sleeper players")))
-      .then((livePlayers: Array<Player & { sleeperId?: string }>) => {
-        const liveByName = new Map(livePlayers.map((player) => [player.name.toLowerCase(), player]));
-        setPlayers([
-          ...seedPlayers.map((player) => {
-            const live = liveByName.get(player.name.toLowerCase());
-            return live ? { ...player, team: live.team, position: live.position } : player;
-          }),
-          ...livePlayers.filter((player) => !seedPlayers.some((seed) => seed.name.toLowerCase() === player.name.toLowerCase())),
-        ]);
-      })
+    fetchPlayerCatalog()
+      .then((playerCatalog) => setPlayers(playerCatalog))
       .catch(() => undefined)
       .finally(() => setPlayerCatalogReady(true));
   }, []);
@@ -184,7 +197,11 @@ export default function RankingsBoard({ userId }: { userId: string }) {
     setActivePlayerId(null);
   };
 
-  const reset = () => setRanking(emptyTierRanking(players));
+  const reset = async () => {
+    const playerCatalog = await fetchPlayerCatalog().catch(() => players);
+    setPlayers(playerCatalog);
+    setRanking(emptyTierRanking(playerCatalog));
+  };
   const signOut = async () => {
     await supabase.auth.signOut();
     router.replace("/login");
