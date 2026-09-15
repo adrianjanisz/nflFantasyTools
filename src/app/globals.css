@@ -68,7 +68,7 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 /* Dense rankings workspace geometry */
 .app-shell { background: #050505; }
 .sidebar { width: 74px; align-items: center; padding: 19px 7px 13px; border-right: 0; background: #080808; }
-.brand-mark { position: relative; width: 38px; height: 38px; margin: 0 auto 21px; border: 0; border-radius: 0; background: #f5f5f5; color: #080808; box-shadow: none; clip-path: polygon(5% 10%, 88% 10%, 97% 49%, 87% 88%, 9% 88%, 0 51%); }
+.brand-mark { position: relative; width: 38px; height: 38px; margin: 0 auto 21px; border: 0; border-radius: 0; background: transparent; color: #080808; box-shadow: none; }
 .brand-mark span { font-size: 20px; font-weight: 800; }
 .brand-mark i { position: absolute; bottom: 3px; left: 11px; width: 19px; height: 5px; border-radius: 50%; background: #6395ee; }
 .side-nav { width: 100%; gap: 4px; }
@@ -126,6 +126,7 @@ h1 { margin: 0; font-size: clamp(28px, 4vw, 43px); letter-spacing: -.04em; }
 @media (max-width: 800px) { .main-content { overflow-x: hidden; padding: 16px 12px 36px; }.topbar { margin-bottom: 20px; }.product-title strong { font-size: 24px; }.board-toolbar { min-width: 0; align-items: flex-start; flex-direction: column; }.toolbar-controls { width: 100%; margin-left: 0; }.search-box { width: 100%; }.rankings-list { min-width: 0; width: 100%; }.list-header, .player-row { grid-template-columns: 28px 32px minmax(0, 1fr) 52px 52px; gap: 6px; }.player-name strong { font-size: 14px; }.player-row { min-height: 50px; } }
 
 .brand-mark { width: 48px; height: 48px; margin-bottom: 24px; }.brand-mark span { font-size: 25px; }.brand-mark i { left: 14px; width: 23px; }
+.brand-mark .brand-football { font-family: "Segoe UI Emoji", sans-serif !important; line-height: 1; }
 .nav-item { padding: 10px 0; font-size: 11px; }.nav-item span { font-size: 23px; }
 .position-tabs { gap: 7px; }.position-tabs button { height: 40px; min-width: 58px; padding: 0 16px; font-size: 13px; }
 .app-shell, .app-shell button, .app-shell input, .app-shell label, .app-shell span, .app-shell strong, .app-shell small { font-family: 'Manrope', sans-serif; }

@@ -193,14 +193,14 @@ export default function RankingsBoard({ userId }: { userId: string }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand-mark" aria-label="Rankings home"><span>R</span><i /></div>
+        <div className="brand-mark" aria-label="Fantasy Tools home"><span className="brand-football" aria-hidden="true">🏈</span></div>
         <nav className="side-nav" aria-label="Main navigation"><button className="nav-item active" type="button"><span>▦</span>Rankings</button></nav>
         <div className="sidebar-footer"><span className="status-dot" /> Cloud board</div>
       </aside>
 
       <main className="main-content">
         <header className="topbar">
-          <div className="product-lockup"><div className="product-title"><strong>Fantasy Rankings</strong></div></div>
+          <div className="product-lockup"><div className="product-title"><strong>Fantasy Tools</strong></div></div>
           <div className="top-actions">
             {saveStatus === "error" && <p className="save-error" role="alert">Could not save changes. Try again.</p>}
             <button className="reset-button" type="button" onClick={reset}>Reset board</button>
