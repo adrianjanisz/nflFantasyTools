@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   closestCenter,
   DndContext,
@@ -23,105 +24,140 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { players as seedPlayers, type Player } from "@/lib/players";
-import { cloneRanking, initialRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
+import { cloneRanking, tiers, type RankingState, type Tier } from "@/lib/ranking-state";
+import { createClient } from "@/lib/supabase/client";
 
 const positions = ["ALL", "QB", "RB", "WR", "TE"] as const;
 type PositionFilter = (typeof positions)[number];
-const storageKey = "nfl-rankings-board-v2";
+type SaveStatus = "loading" | "saving" | "saved" | "error";
+
 const positionOrder: Record<Player["position"], number> = { QB: 0, RB: 1, WR: 2, TE: 3 };
 const sortedPlayerIds = (catalog: Player[]) => [...catalog]
   .sort((left, right) => positionOrder[left.position] - positionOrder[right.position] || left.name.localeCompare(right.name))
   .map((player) => player.id);
-const emptyTierRanking = (): RankingState => ({ S: [], A: [], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: sortedPlayerIds(seedPlayers) });
+const emptyTierRanking = (catalog: Player[] = seedPlayers): RankingState => ({ S: [], A: [], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: sortedPlayerIds(catalog) });
 
-export default function RankingsBoard() {
+function normalizeRanking(value: unknown): RankingState {
+  if (!value || typeof value !== "object") return emptyTierRanking();
+  const stored = value as Partial<Record<Tier, unknown>>;
+  return Object.fromEntries(tiers.map((tier) => [tier, Array.isArray(stored[tier]) ? stored[tier].filter((id): id is string => typeof id === "string") : []])) as RankingState;
+}
+
+export default function RankingsBoard({ userId }: { userId: string }) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [players, setPlayers] = useState<Player[]>(seedPlayers);
   const playerById = useMemo(() => new Map(players.map((player) => [player.id, player])), [players]);
-  // Keep the first browser render identical to the server render. Saved board
-  // data is restored only after React has hydrated the page.
   const [ranking, setRanking] = useState<RankingState>(emptyTierRanking);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    const restoreSavedRanking = window.setTimeout(() => {
-      const saved = window.localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          setRanking(cloneRanking({ ...initialRanking, ...(JSON.parse(saved) as Partial<RankingState>) }));
-        } catch {
-          window.localStorage.removeItem(storageKey);
-        }
-      }
-      setHydrated(true);
-    }, 0);
-
-    return () => window.clearTimeout(restoreSavedRanking);
-  }, []);
-
+  const [rankingReady, setRankingReady] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("loading");
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [filter, setFilter] = useState<PositionFilter>("ALL");
   const [query, setQuery] = useState("");
-  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
+  const lastPersistedRanking = useRef<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
   useEffect(() => {
-    if (hydrated) window.localStorage.setItem(storageKey, JSON.stringify(ranking));
-  }, [hydrated, ranking]);
+    let cancelled = false;
+
+    const loadRanking = async () => {
+      const { data, error } = await supabase
+        .from("user_rankings")
+        .select("ranking")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        setSaveStatus("error");
+        setRankingReady(true);
+        return;
+      }
+
+      if (data?.ranking) {
+        const savedRanking = normalizeRanking(data.ranking);
+        lastPersistedRanking.current = JSON.stringify(savedRanking);
+        setRanking(savedRanking);
+        setSaveStatus("saved");
+      }
+
+      setRankingReady(true);
+    };
+
+    void loadRanking();
+    return () => { cancelled = true; };
+  }, [supabase, userId]);
 
   useEffect(() => {
     fetch("/api/players")
       .then((response) => response.ok ? response.json() : Promise.reject(new Error("Unable to load Sleeper players")))
       .then((livePlayers: Array<Player & { sleeperId?: string }>) => {
         const liveByName = new Map(livePlayers.map((player) => [player.name.toLowerCase(), player]));
-        const mergedCatalog = [
+        setPlayers([
           ...seedPlayers.map((player) => {
             const live = liveByName.get(player.name.toLowerCase());
-            return live ? { ...player, team: live.team, position: live.position, imageUrl: live.imageUrl || player.imageUrl } : player;
+            return live ? { ...player, team: live.team, position: live.position } : player;
           }),
           ...livePlayers.filter((player) => !seedPlayers.some((seed) => seed.name.toLowerCase() === player.name.toLowerCase())),
-        ];
-        setPlayers((current) => {
-          const currentByName = new Map(current.map((player) => [player.name.toLowerCase(), player]));
-          const merged = mergedCatalog.map((player) => {
-            const existing = currentByName.get(player.name.toLowerCase());
-            if (existing && existing.id !== player.id) return { ...existing, team: player.team, position: player.position, imageUrl: player.imageUrl || existing.imageUrl };
-            const live = liveByName.get(player.name.toLowerCase());
-            return live ? { ...player, team: live.team, position: live.position, imageUrl: live.imageUrl || player.imageUrl } : player;
-          });
-          return merged;
-        });
-        setRanking((current) => {
-          const hasPlacedPlayers = tiers.some((tier) => tier !== "I" && current[tier].length > 0);
-          const rankedIds = new Set(Object.values(current).flat());
-          const rankedNames = new Set(
-            Object.values(current).flat().map((id) => {
-              const seed = seedPlayers.find((player) => player.id === id);
-              return seed?.name.toLowerCase();
-            }).filter(Boolean),
-          );
-          const newPlayers = livePlayers.filter((player) => !rankedIds.has(player.id) && !rankedNames.has(player.name.toLowerCase()));
-          if (hasPlacedPlayers) return newPlayers.length ? { ...current, I: [...current.I, ...newPlayers.map((player) => player.id)] } : current;
-          return { ...current, I: sortedPlayerIds(mergedCatalog) };
-        });
+        ]);
       })
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!rankingReady) return;
+
+    const reconcileTimer = window.setTimeout(() => {
+      setRanking((current) => {
+        const rankedIds = new Set(Object.values(current).flat());
+        const newPlayerIds = sortedPlayerIds(players).filter((id) => !rankedIds.has(id));
+        return newPlayerIds.length ? { ...current, I: [...current.I, ...newPlayerIds] } : current;
+      });
+    }, 0);
+
+    return () => window.clearTimeout(reconcileTimer);
+  }, [players, rankingReady]);
+
+  useEffect(() => {
+    if (!rankingReady) return;
+
+    const serializedRanking = JSON.stringify(ranking);
+    if (serializedRanking === lastPersistedRanking.current) return;
+
+    const saveTimer = window.setTimeout(async () => {
+      setSaveStatus("saving");
+      const { error } = await supabase.from("user_rankings").upsert({
+        user_id: userId,
+        ranking,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (error) {
+        setSaveStatus("error");
+        return;
+      }
+
+      lastPersistedRanking.current = serializedRanking;
+      setSaveStatus("saved");
+    }, 500);
+
+    return () => window.clearTimeout(saveTimer);
+  }, [ranking, rankingReady, supabase, userId]);
 
   const visible = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     return (playerId: string) => {
       const player = playerById.get(playerId);
       if (!player) return false;
-      const matchesPosition = filter === "ALL" || player.position === filter;
-      const matchesQuery = !normalizedQuery || player.name.toLowerCase().includes(normalizedQuery);
-      return matchesPosition && matchesQuery;
+      return (filter === "ALL" || player.position === filter) && (!normalizedQuery || player.name.toLowerCase().includes(normalizedQuery));
     };
   }, [filter, query, playerById]);
 
   const tierOf = (playerId: string, state: RankingState) => tiers.find((tier) => state[tier].includes(playerId));
-
   const handleDragStart = ({ active }: DragStartEvent) => setActivePlayerId(String(active.id));
 
   const handleDragOver = ({ active, over }: DragOverEvent) => {
@@ -155,41 +191,42 @@ export default function RankingsBoard() {
     setActivePlayerId(null);
   };
 
-  const reset = () => {
-    setRanking({ S: [], A: [], B: [], C: [], D: [], E: [], F: [], G: [], H: [], I: sortedPlayerIds(players) });
-    window.localStorage.removeItem(storageKey);
+  const reset = () => setRanking(emptyTierRanking(players));
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
   };
+  const saveMessage = saveStatus === "loading" ? "Loading board..." : saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "Saved" : "Could not save";
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-          <div className="brand-mark" aria-label="Rankings home"><span>R</span><i /></div>
-        <nav className="side-nav" aria-label="Main navigation">
-          <button className="nav-item active" type="button"><span>▥</span>Rankings</button>
-        </nav>
-        <div className="sidebar-footer"><span className="status-dot" /> Local board</div>
+        <div className="brand-mark" aria-label="Rankings home"><span>R</span><i /></div>
+        <nav className="side-nav" aria-label="Main navigation"><button className="nav-item active" type="button"><span>▦</span>Rankings</button></nav>
+        <div className="sidebar-footer"><span className="status-dot" /> Cloud board</div>
       </aside>
 
       <main className="main-content">
         <header className="topbar">
           <div className="product-lockup"><div className="product-title"><strong>Fantasy Rankings</strong></div></div>
-          <div className="top-actions"><button className="reset-button" type="button" onClick={reset}>Reset board</button></div>
+          <div className="top-actions">
+            <span className={`saved-label save-status-${saveStatus}`}>{saveMessage}</span>
+            <button className="reset-button" type="button" onClick={reset}>Reset board</button>
+            <button className="reset-button" type="button" onClick={() => void signOut()}>Sign out</button>
+          </div>
         </header>
 
         <section className="board-toolbar" aria-label="Ranking controls">
           <div className="league-controls"><label>Position:<span className="position-tabs" role="tablist" aria-label="Filter by position">{positions.map((position) => <button role="tab" aria-selected={filter === position} className={filter === position ? "selected" : ""} key={position} type="button" onClick={() => setFilter(position)}>{position === "ALL" ? "Overall" : position}</button>)}</span></label></div>
-          <div className="toolbar-controls">
-            <label className="search-box"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search for a player..." aria-label="Search players" /></label>
-          </div>
+          <div className="toolbar-controls"><label className="search-box"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search for a player..." aria-label="Search players" /></label></div>
         </section>
 
         <DndContext id="rankings-board" sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={() => setActivePlayerId(null)}>
-        <section className="rankings-list" aria-label="Player rankings">
-          {tiers.map((tier) => (
-            <TierGroup key={tier} tier={tier} playerIds={ranking[tier].filter(visible)} ranking={ranking} playerById={playerById} />
-          ))}
-        </section>
-        <DragOverlay dropAnimation={null}>{activePlayerId && playerById.get(activePlayerId) ? <DragPreview player={playerById.get(activePlayerId)!} rank={Object.values(ranking).flat().indexOf(activePlayerId) + 1} /> : null}</DragOverlay>
+          <section className="rankings-list" aria-label="Player rankings">
+            {tiers.map((tier) => <TierGroup key={tier} tier={tier} playerIds={ranking[tier].filter(visible)} ranking={ranking} playerById={playerById} />)}
+          </section>
+          <DragOverlay dropAnimation={null}>{activePlayerId && playerById.get(activePlayerId) ? <DragPreview player={playerById.get(activePlayerId)!} rank={Object.values(ranking).flat().indexOf(activePlayerId) + 1} /> : null}</DragOverlay>
         </DndContext>
       </main>
     </div>
@@ -204,8 +241,7 @@ function TierGroup({ tier, playerIds, ranking, playerById }: { tier: Tier; playe
       <div className="tier-players">
         {playerIds.map((playerId) => {
           const player = playerById.get(playerId);
-          if (!player) return null;
-          return <PlayerRow key={player.id} player={player} rank={Object.values(ranking).flat().indexOf(playerId) + 1} />;
+          return player ? <PlayerRow key={player.id} player={player} rank={Object.values(ranking).flat().indexOf(playerId) + 1} /> : null;
         })}
         {!playerIds.length && <div className="empty-tier">Drop players here</div>}
       </div>
@@ -216,22 +252,14 @@ function TierGroup({ tier, playerIds, ranking, playerById }: { tier: Tier; playe
 function PlayerRow({ player, rank }: { player: Player; rank: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: player.id });
   return <div ref={setNodeRef} className={`player-row ${isDragging ? "is-dragging" : ""}`} style={{ transform: CSS.Transform.toString(transform), transition }} {...attributes} {...listeners}>
-    <span className="rank-number">{rank}.</span>
-    <PlayerAvatar player={player} />
+    <span className="rank-number">{rank}.</span><PlayerAvatar player={player} />
     <div className="player-name"><strong>{player.name}</strong><span>{player.position === "QB" ? "Quarterback" : player.position === "RB" ? "Running back" : player.position === "WR" ? "Wide receiver" : "Tight end"}</span></div>
-    <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span>
-    <span className="team-code">{player.team}</span>
+    <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span><span className="team-code">{player.team}</span>
   </div>;
 }
 
 function DragPreview({ player, rank }: { player: Player; rank: number }) {
-  return <div className="drag-preview">
-    <span className="rank-number">{rank}.</span>
-    <PlayerAvatar player={player} />
-    <div className="player-name"><strong>{player.name}</strong></div>
-    <span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span>
-    <span className="team-code">{player.team}</span>
-  </div>;
+  return <div className="drag-preview"><span className="rank-number">{rank}.</span><PlayerAvatar player={player} /><div className="player-name"><strong>{player.name}</strong></div><span className={`position-pill position-${player.position.toLowerCase()}`}>{player.position}</span><span className="team-code">{player.team}</span></div>;
 }
 
 function PlayerAvatar({ player }: { player: Player }) {

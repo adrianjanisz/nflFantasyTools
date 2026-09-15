@@ -4,19 +4,6 @@ export type Tier = (typeof tiers)[number];
 
 export type RankingState = Record<Tier, string[]>;
 
-export const initialRanking: RankingState = {
-  S: ["gibbs", "bijan", "chase"],
-  A: ["puka", "mccaffrey", "amon-ra", "jsn", "taylor"],
-  B: ["ceedee", "cook", "jefferson", "brown", "achane", "hampton", "barkley", "walker"],
-  C: ["ceedee", "cook", "jefferson", "brown", "achane", "hampton", "barkley", "walker"],
-  D: ["allen", "hurts"],
-  E: ["lamar"],
-  F: ["laporta"],
-  G: [],
-  H: [],
-  I: [],
-};
-
 export const cloneRanking = (ranking: RankingState): RankingState => ({
   S: [...ranking.S],
   A: [...ranking.A],
